@@ -31,6 +31,19 @@ void meta_print(byte* arr){
     printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld }\n",lm->len, lm->max);
     }
 
+void meta_print_llist(byte* arr){
+    if(!arr) printf("{ NULL }\n");
+    llnode* node = cast_llist(arr);
+    if(node->next ==NULL && node->prev ==NULL)
+        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = NULL, PREV = NULL }\n",node->meta.len, node->meta.max);
+    else if(node->next ==NULL) 
+        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = NULL, PREV = %p }\n",node->meta.len, node->meta.max, (void*)node->prev);
+    else if(node->prev == NULL)
+        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = %p, PREV = NULL }\n",node->meta.len, node->meta.max, (void*)node->next);
+    else
+        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = %p, PREV = %p }\n",node->meta.len, node->meta.max, (void*)node->next, (void*)node->prev);
+    }
+
 /****************************************************************************
 ****                CREATE DESTROY GETTERS RESIZE                        ****
 ****************************************************************************/
@@ -51,14 +64,14 @@ void loca_destroy(byte *arr){
     tfree(meta);
 }
 
-llnode *llist_create(byte ** arr2, arr_size size){
+loca_meta *llist_create(byte ** arr2, arr_size size){
     if(!arr2) return 0;
     size = (size > 0) ? size : STD_SIZE;
     llnode *node = tmalloc(_size_llnode + roundup32(size));          
     if(!node) return NULL;                                            
     node->next = NULL; node->prev = NULL; node->meta.len = 0; node->meta.max = size;
     *arr2 = jump_llist(node); 
-    return node;
+    return cast_meta(*arr2);
   }
 
 void llist_destroy(byte *arr){
@@ -77,8 +90,17 @@ arr_size loca_size(byte *arr){
     return 0;
 }
 
+arr_size loca_clear(byte *arr){
+    if(arr){
+        loca_meta* meta = cast_meta(arr);
+        meta->len=0;
+        return meta->len;
+    }
+    return 1;
+}
+
 static byte* resize_circ(byte** arr2, arr_size extra_len){
-    
+    if(arr2 || (*arr2)) return NULL;
     circheader* header = cast_circ((*arr2));
     header->virtual_end = header->meta.len;
     header->meta.len=0;
@@ -86,7 +108,6 @@ static byte* resize_circ(byte** arr2, arr_size extra_len){
 }
 
 static byte* resize_llist(byte** arr2, arr_size extra_len){
-
     if(!arr2 || !(*arr2)) return 0;
     //falta checar size_t overflow
     //fazer roundup64 unsigned
@@ -94,7 +115,8 @@ static byte* resize_llist(byte** arr2, arr_size extra_len){
     loca_meta* meta = &node->meta;
     arr_size new_size = (meta->max > extra_len) ? meta->max : roundup32(extra_len);
     byte * new_node_ptr = NULL;
-    llnode* new_node = llist_create(&new_node_ptr, new_size);
+    loca_meta* new_meta = llist_create(&new_node_ptr, new_size);
+    llnode* new_node =cast_llist(new_node_ptr);
     node->next = new_node;
     new_node->prev = node;
     return new_node_ptr;   
@@ -113,7 +135,7 @@ static byte* resize_vec(byte** arr2, arr_size extra_len){
     return jump_meta(meta);
 }
 
-static arr_size push(byte *arr, byte *src, arr_size size){
+static arr_size push_orNot(byte *arr, byte *src, arr_size size){
     if(!arr) return 0;
     loca_meta* meta = cast_meta(arr);
     assert(meta->max >= meta->len);
@@ -123,14 +145,30 @@ static arr_size push(byte *arr, byte *src, arr_size size){
     return size;    
 }
 
+static arr_size push_some(byte *arr, byte *src, arr_size size){
+
+    if(!arr) return 0;
+    loca_meta* meta = cast_meta(arr);
+    assert(meta->max >= meta->len);
+    arr_size available = ((meta->max - size) > meta->len) ? size : (meta->max - meta->len);
+    if(!available) return 0;
+    memmove(&arr[meta->len],src, available);
+    meta->len += available;
+    return available;    
+}
+
+
 typedef byte* loca_resize(byte** , arr_size ); 
 
-static arr_size push_many_grow(byte **arr2, byte *src, arr_size size, loca_resize* rsz){
+static arr_size push_grow(byte **arr2, byte *src, arr_size size, loca_resize* rsz, bool is_string){
         if(!arr2 || !(*arr2)) return 0;
-        arr_size res = push((*arr2),src,size);
-        if( res != 0) return res;
-        *arr2 = rsz(arr2,size);
-        return push((*arr2),src,size);
+        arr_size res = 0;
+
+        if(is_string){ res = push_orNot((*arr2),src,size);}
+        else{ res = push_some((*arr2),src,size);}
+        if( res == size) return res;
+        *arr2 = rsz(arr2,(size-res));
+        return res + push_orNot((*arr2),src,(size-res));
     }
 
 /****************************************************************************
@@ -139,19 +177,44 @@ static arr_size push_many_grow(byte **arr2, byte *src, arr_size size, loca_resiz
 
 arr_size loca_push_one(byte **arr2, byte src){
     if(!arr2 || !(*arr2)) return 0;
-    return push((*arr2),&src,1);
+    return push_orNot((*arr2),&src,1);
 }
 
 arr_size loca_push_one_vec(byte **arr2, byte src){
-    return push_many_grow(arr2, &src, 1, resize_vec);
+    return push_grow(arr2, &src, 1, resize_vec,1);
 }
 
 arr_size loca_push_one_llist(byte **arr2, byte src){
-    return push_many_grow(arr2, &src, 1, resize_llist);
+    return push_grow(arr2, &src, 1, resize_llist,1);
 }
 
 arr_size loca_push_one_circ(byte **arr2, byte src){
-    return push_many_grow(arr2, &src, 1, resize_circ);    
+    return push_grow(arr2, &src, 1, resize_circ,1);    
+}
+
+/****************************************************************************
+****                            PUSH STR                                 ****
+****************************************************************************/
+
+arr_size loca_push_str(byte **arr2, byte *src, arr_size size, bool zero_terminated){
+    if(!arr2 || !(*arr2)) return 0;
+    //falta add o zero terminated
+    return push_orNot((*arr2),src,size);
+}
+
+arr_size loca_push_str_vec(byte **arr2, byte *src, arr_size size, bool zero_terminated){
+    //falta add o zero terminated
+    return push_grow(arr2,src, size, resize_vec,1);
+}
+
+arr_size loca_push_str_llist(byte **arr2, byte *src, arr_size size, bool zero_terminated){
+    //falta add o zero terminated
+    return push_grow(arr2,src, size, resize_llist,1);
+}
+
+arr_size loca_push_str_circ(byte **arr2, byte *src, arr_size size, bool zero_terminated){
+    //falta add o zero terminated
+    return push_grow(arr2,src, size, resize_circ,1);    
 }
 
 /****************************************************************************
@@ -160,20 +223,21 @@ arr_size loca_push_one_circ(byte **arr2, byte src){
 
 arr_size loca_push_many(byte **arr2, byte *src, arr_size size){
     if(!arr2 || !(*arr2)) return 0;
-    return push((*arr2),src,size);
+    return push_some((*arr2),src,size);
 }
 
 arr_size loca_push_many_vec(byte **arr2, byte *src, arr_size size){
-    return push_many_grow(arr2,src, size, resize_vec);
+    return push_grow(arr2,src, size, resize_vec,1); //push_some makes no sense to vectors
 }
 
 arr_size loca_push_many_llist(byte **arr2, byte *src, arr_size size){
-    return push_many_grow(arr2,src, size, resize_llist);
+    return push_grow(arr2,src, size, resize_llist,0);
 }
 
 arr_size loca_push_many_circ(byte **arr2, byte *src, arr_size size){
-    return push_many_grow(arr2,src, size, resize_circ);    
+    return push_grow(arr2,src, size, resize_circ,0);    
 }
+
 
 /****************************************************************************
 ****                                 AT                                  ****
@@ -187,27 +251,93 @@ byte *loca_at(byte *arr, arr_size index){
 }
 
 /****************************************************************************
+****                            UTILS                                    ****
+****************************************************************************/
+
+byte *loca_copy(byte *arr){
+    if(!arr) return NULL;
+    loca_meta* meta = cast_meta(arr);
+    byte* copy = NULL;
+    loca_meta* copy_meta = loca_create(&copy,meta->max);
+    push_orNot(copy,arr,meta->len);
+    return copy;
+}
+
+byte *loca_llist_copy(byte *arr){
+    return NULL;
+}
+
+/****************************************************************************
 ****                          ITERATOR                                   ****
 ****************************************************************************/
 
 byte* iterator_begin(byte* arr){return &arr[0];}\
 byte* iterator_end(byte* arr){return &arr[cast_meta(arr)->len];}
+byte* iterator_next(byte** arr){if(!arr || !(*arr)) return NULL; return ++(*arr);}
+byte* iterator_prev(byte** arr){if(!arr || !(*arr)) return NULL;return --(*arr);}
+
 byte* iterator_llist_begin(byte* arr){
 
     if(arr==NULL) return NULL;
     llnode* first = cast_llist(arr);
-    
-    while(first->prev !=NULL) first = first->prev;
+    while(first->prev !=NULL){
+        first = first->prev;}
 
     return jump_llist(first);
 }
 
 byte* iterator_llist_end(byte* arr){
-        
-    llnode* last = cast_llist(arr);
-    while(last !=NULL) last = last->prev;
 
-    return &jump_llist(last)[last->meta.len];
+    if(arr==NULL) return NULL;
+    llnode* last = cast_llist(arr);
+    while(last->next !=NULL) last = last->next;
+
+    return jump_llist(last);
+}
+
+byte* iterator_llist_next(byte** arr){
+    if(!arr && !(*arr)) return NULL;
+
+    llnode* node = cast_llist(*arr);
+    if(!node->next) return NULL;
+    node = node->next;
+    return jump_llist(node);
+
+    }
+
+byte* iterator_llist_prev(byte** arr){
+    if(arr && (*arr)){
+    llnode* node = cast_llist(*arr);
+    node = node->prev;
+    if(node) return jump_llist(node);
+    }
+    return NULL;
+}
+
+/****************************************************************************
+****                          FOR EACH                                   ****
+****************************************************************************/
+
+byte* for_each_map(byte* arr, map* map_func){
+
+    byte* mapped = NULL;
+    vector.create(&mapped, array.size(arr));
+    printf("deu certo\n");
+    return NULL;
+}
+
+byte* for_each_filter(byte* arr, filter* filter_func){
+    return NULL;
+
+}
+
+byte* for_each_llist_map(byte* arr, map* map_func){
+    return NULL;
+}
+
+byte* for_each_llist_filter(byte* arr, filter* filter_func){
+    return NULL;
+
 }
 
 /****************************************************************************
@@ -218,31 +348,49 @@ const struct vTable_st array = {loca_create,
                             loca_destroy,
                             loca_length,
                             loca_size,
+                            loca_clear,
                             loca_push_one,
                             loca_push_many,
+                            loca_push_str,
                             loca_at,
                             iterator_begin,
-                            iterator_end
+                            iterator_end,
+                            iterator_next,
+                            iterator_prev,
+                            for_each_llist_map,
+                            for_each_llist_filter
                             };
 
-const struct vTable_st vector = {.create = &loca_create, 
-                            .destroy = &loca_destroy,
-                            .length = &loca_length,
-                            .size = &loca_size,
-                            .push_one = &loca_push_one_vec,
-                            .push_many = &loca_push_many_vec,
-                            .at = &loca_at,
-                            .it_begin = &iterator_begin,
-                            .it_end = &iterator_end
+const struct vTable_st vector = {loca_create, 
+                            loca_destroy,
+                            loca_length,
+                            loca_size,
+                            loca_clear,
+                            loca_push_one_vec,
+                            loca_push_many_vec,
+                            loca_push_str_vec,
+                            loca_at,
+                            iterator_begin,
+                            iterator_end,
+                            iterator_next,
+                            iterator_prev,
+                            for_each_map,
+                            for_each_filter
                             };
 
-const struct vTable_st llist = {.create = &loca_create, 
-                            .destroy = &loca_destroy,
-                            .length = &loca_length,
-                            .size = &loca_size,
-                            .push_one = &loca_push_one_llist,
-                            .push_many = &loca_push_many_llist,
-                            .at = &loca_at,
-                            .it_begin = &iterator_begin,
-                            .it_end = &iterator_end
+const struct vTable_st llist = {llist_create, 
+                            loca_destroy,
+                            loca_length,
+                            loca_size,
+                            loca_clear,
+                            loca_push_one_llist,
+                            loca_push_many_llist,
+                            loca_push_str_vec,
+                            loca_at,
+                            iterator_llist_begin,
+                            iterator_llist_end,
+                            iterator_llist_next,
+                            iterator_llist_prev,
+                            for_each_llist_map,
+                            for_each_llist_filter
                             };

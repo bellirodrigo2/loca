@@ -11,17 +11,14 @@ set(CMAKE_C_STANDARD 11)
 # find_package(GTest REQUIRED)
 
 add_executable(tloca test/tloca.c loca.c)
-add_executable(tlocaNEW test/tlocaNEW.c loca.c)
 # add_executable(gtloca test/gtloca.cpp loca.c)
 add_executable(tsstr test/tsstr.c sstring.c)
 
 # run undefined behavior sanitizer
 target_link_libraries(tloca -fsanitize=undefined -fno-omit-frame-pointer)
-target_link_libraries(tlocaNEW -fsanitize=undefined -fno-omit-frame-pointer)
 target_link_libraries(tsstr -fsanitize=undefined -fno-omit-frame-pointer)
 
 target_compile_options(tloca PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unused -fsanitize=undefined -fno-omit-frame-pointer)
-target_compile_options(tlocaNEW PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unused -fsanitize=undefined -fno-omit-frame-pointer)
 target_compile_options(tsstr PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unused -fsanitize=undefined -fno-omit-frame-pointer)
 
 #for GOOGLE TEST
