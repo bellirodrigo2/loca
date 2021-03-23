@@ -10,7 +10,7 @@ set(CMAKE_C_STANDARD 11)
 #for GOOGLE TEST
 # find_package(GTest REQUIRED)
 
-add_executable(tloca test/tloca.c loca.c)
+add_executable(tloca test/tloca.c loca.c lib_maps.c)
 # add_executable(gtloca test/gtloca.cpp loca.c)
 add_executable(tsstr test/tsstr.c sstring.c)
 

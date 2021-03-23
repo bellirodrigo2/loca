@@ -1,7 +1,10 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "lib_maps.h"
 
-nao eh byte, eh int32, int63, float32, float64, string
-
-void times_two_func(byte* value, byte* res){}
-void times_three_func(byte* value, byte* res){}
+byte* minus_two_func(byte* value, byte* res){
+    if(!value) return NULL; 
+    *res = (*value)-2; 
+    printf("new value is: %u\n",*res);
+    return res;
+    }

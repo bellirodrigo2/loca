@@ -271,12 +271,12 @@ byte *loca_llist_copy(byte *arr){
 ****                          ITERATOR                                   ****
 ****************************************************************************/
 
-byte* iterator_begin(byte* arr){return &arr[0];}\
-byte* iterator_end(byte* arr){return &arr[cast_meta(arr)->len];}
-byte* iterator_next(byte** arr){if(!arr || !(*arr)) return NULL; return ++(*arr);}
-byte* iterator_prev(byte** arr){if(!arr || !(*arr)) return NULL;return --(*arr);}
+byte* it_begin(byte* arr){if(!arr) return NULL; return &arr[0];}\
+byte* it_end(byte* arr){if(!arr) return NULL; return &arr[cast_meta(arr)->len];}
+byte* it_next(byte** arr){if(!arr || !(*arr)) return NULL; return ++(*arr);}
+byte* it_prev(byte** arr){if(!arr || !(*arr)) return NULL;return --(*arr);}
 
-byte* iterator_llist_begin(byte* arr){
+byte* it_llist_begin(byte* arr){
 
     if(arr==NULL) return NULL;
     llnode* first = cast_llist(arr);
@@ -286,7 +286,7 @@ byte* iterator_llist_begin(byte* arr){
     return jump_llist(first);
 }
 
-byte* iterator_llist_end(byte* arr){
+byte* it_llist_end(byte* arr){
 
     if(arr==NULL) return NULL;
     llnode* last = cast_llist(arr);
@@ -295,9 +295,8 @@ byte* iterator_llist_end(byte* arr){
     return jump_llist(last);
 }
 
-byte* iterator_llist_next(byte** arr){
+byte* it_llist_next(byte** arr){
     if(!arr && !(*arr)) return NULL;
-
     llnode* node = cast_llist(*arr);
     if(!node->next) return NULL;
     node = node->next;
@@ -305,12 +304,40 @@ byte* iterator_llist_next(byte** arr){
 
     }
 
-byte* iterator_llist_prev(byte** arr){
-    if(arr && (*arr)){
-    llnode* node = cast_llist(*arr);
-    node = node->prev;
-    if(node) return jump_llist(node);
-    }
+byte* it_llist_prev(byte** arr){
+    if(!arr && !(*arr)) return NULL;
+        llnode* node = cast_llist(*arr);
+        if(!node->next) return NULL;
+        node = node->prev;
+    return jump_llist(node);
+}
+
+byte* zip_begin(byte* arr1, byte* arr2){
+    if(!arr1 || !arr2) return NULL; 
+
+    byte** res = tmalloc(2*sizeof(void*));
+    res[0]=&arr1[0];
+    res[1]=&arr2[0];
+
+    return *res;
+}
+byte* zip_end(byte* arr1, byte* arr2){
+    if(!arr1 || !arr2) return NULL; 
+
+    byte** res = tmalloc(2*sizeof(void*));
+    res[0]=&arr1[cast_meta(arr1)->len];
+    res[1]=&arr2[cast_meta(arr2)->len];
+
+    return *res;
+}
+byte* zip_prev(byte* arr1, byte* arr2){
+    return NULL;
+}
+byte* zip_next(byte* arr1, byte* arr2){
+    return NULL;
+}
+
+byte* zip_destroy(byte* arr1, byte* arr2){
     return NULL;
 }
 
@@ -318,24 +345,41 @@ byte* iterator_llist_prev(byte** arr){
 ****                          FOR EACH                                   ****
 ****************************************************************************/
 
-byte* for_each_map(byte* arr, map* map_func){
+static byte* for_each_base(byte* arr, map_func* map, byte* mapped, arr_size init_size){
+
+    byte* temp = NULL;
+    vector.create(&mapped, init_size);
+    vector.create(&temp, UINT8_MAX);
+
+    arr_size it_counter=0;
+    for (byte* it_b = array.it_begin(arr); it_b != array.it_end(arr); array.it_next(&it_b)){
+        map(&arr[it_counter],temp);
+        assert(temp != NULL);
+        array.push_one(&arr,*temp);
+        it_counter++;
+        vector.clear(temp);
+    }
+    vector.destroy(temp);
+    return mapped;
+}
+
+byte* for_each_map(byte* arr, map_func* map){
 
     byte* mapped = NULL;
-    vector.create(&mapped, array.size(arr));
-    printf("deu certo\n");
+    return for_each_base(arr,map,mapped,loca_length(arr));
+}
+
+byte* for_each_filter(byte* arr, filter_func* filter){
+    byte* mapped = NULL;
+    return for_each_base(arr,filter,mapped,loca_length(arr));
+
+}
+
+byte* for_each_llist_map(byte* arr, map_func* map){
     return NULL;
 }
 
-byte* for_each_filter(byte* arr, filter* filter_func){
-    return NULL;
-
-}
-
-byte* for_each_llist_map(byte* arr, map* map_func){
-    return NULL;
-}
-
-byte* for_each_llist_filter(byte* arr, filter* filter_func){
+byte* for_each_llist_filter(byte* arr, filter_func* filter){
     return NULL;
 
 }
@@ -353,12 +397,12 @@ const struct vTable_st array = {loca_create,
                             loca_push_many,
                             loca_push_str,
                             loca_at,
-                            iterator_begin,
-                            iterator_end,
-                            iterator_next,
-                            iterator_prev,
-                            for_each_llist_map,
-                            for_each_llist_filter
+                            it_begin,
+                            it_end,
+                            it_next,
+                            it_prev,
+                            for_each_map,
+                            for_each_filter
                             };
 
 const struct vTable_st vector = {loca_create, 
@@ -370,10 +414,10 @@ const struct vTable_st vector = {loca_create,
                             loca_push_many_vec,
                             loca_push_str_vec,
                             loca_at,
-                            iterator_begin,
-                            iterator_end,
-                            iterator_next,
-                            iterator_prev,
+                            it_begin,
+                            it_end,
+                            it_next,
+                            it_prev,
                             for_each_map,
                             for_each_filter
                             };
@@ -387,10 +431,10 @@ const struct vTable_st llist = {llist_create,
                             loca_push_many_llist,
                             loca_push_str_vec,
                             loca_at,
-                            iterator_llist_begin,
-                            iterator_llist_end,
-                            iterator_llist_next,
-                            iterator_llist_prev,
+                            it_llist_begin,
+                            it_llist_end,
+                            it_llist_next,
+                            it_llist_prev,
                             for_each_llist_map,
                             for_each_llist_filter
                             };

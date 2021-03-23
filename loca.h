@@ -82,27 +82,35 @@ byte *loca_llist_copy(byte *arr);
 
 
 //iterator
-byte* iterator_begin(byte* arr);
-byte* iterator_end(byte* arr);
-byte* iterator_next(byte** arr);
-byte* iterator_prev(byte** arr);
+byte* it_begin(byte* arr);
+byte* it_end(byte* arr);
+byte* it_next(byte** arr);
+byte* it_prev(byte** arr);
 
-byte* iterator_llist_begin(byte* arr);
-byte* iterator_llist_end(byte* arr);
-byte* iterator_llist_next(byte** arr);
-byte* iterator_llist_prev(byte** arr);
+byte* it_llist_begin(byte* arr);
+byte* it_llist_end(byte* arr);
+byte* it_llist_next(byte** arr);
+byte* it_llist_prev(byte** arr);
 
-byte* iterator_circ_end(byte* arr);
+byte* it_circ_end(byte* arr);
+
+typedef struct zip_pointer_st2 zip_ptr2;
+
+byte* zip_begin(byte* arr1, byte* arr2);
+byte* zip_end(byte* arr1, byte* arr2);
+byte* zip_prev(byte* arr1, byte* arr2);
+byte* zip_next(byte* arr1, byte* arr2);
+byte* zip_destroy(byte* arr1, byte* arr2);
 
 //for each
-typedef void map(byte*,byte*);
-typedef void reduce(byte*,byte*,byte*);
-typedef map filter;
-byte* for_each_map(byte* arr, map* map_func);
-byte* for_each_filter(byte* arr, filter* filter_func);
+typedef byte* map_func(byte*,byte*);
+typedef byte* reduce_func(byte*,byte*,byte*);
+typedef map_func filter_func;
+byte* for_each_map(byte* arr, map_func* map_func);
+byte* for_each_filter(byte* arr, filter_func* filter_func);
 
-byte* for_each_llist_map(byte* arr, map* map_func);
-byte* for_each_llist_filter(byte* arr, filter* filter_func);
+byte* for_each_llist_map(byte* arr, map_func* map_func);
+byte* for_each_llist_filter(byte* arr, filter_func* filter_func);
 
 /****************************************************************************
 ****                               VTABLE                                ****
@@ -114,11 +122,11 @@ typedef arr_size push_one_(byte **, byte);
 typedef arr_size push_many_(byte **, byte *, arr_size );
 typedef arr_size push_str_(byte **, byte *, arr_size,bool );
 typedef byte *at_(byte *, arr_size );
-typedef byte* iterator_begin_(byte* );
-typedef byte* iterator_end_(byte* );
-typedef byte* iterator_next_(byte** );
-typedef byte* iterator_prev_(byte** );
-typedef byte* iterator_for_each_map_(byte*, map*);
+typedef byte* it_begin_(byte* );
+typedef byte* it_end_(byte* );
+typedef byte* it_next_(byte** );
+typedef byte* it_prev_(byte** );
+typedef byte* it_for_each_map_(byte*, map_func*);
 
 typedef struct vTable_st vTable;
 struct vTable_st{
@@ -131,12 +139,12 @@ struct vTable_st{
     push_many_* push_many;
     push_str_* push_str;
     at_* at;
-    iterator_begin_* it_begin;
-    iterator_end_* it_end;
-    iterator_next_* it_next;
-    iterator_prev_* it_prev;
-    iterator_for_each_map_* for_each_map;
-    iterator_for_each_map_* for_each_filter;
+    it_begin_* it_begin;
+    it_end_* it_end;
+    it_next_* it_next;
+    it_prev_* it_prev;
+    it_for_each_map_* for_each_map;
+    it_for_each_map_* for_each_filter;
 };
 
 extern const vTable array;

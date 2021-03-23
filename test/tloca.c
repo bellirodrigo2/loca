@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "../loca.h"
+#include "../lib_maps.h"
 
 #define assert_profile_array(arr_name_, len_, max_)\
     {assert(array.length( arr_name_ ) == len_ );\
@@ -140,8 +141,8 @@ int main()
 
     printf("[\t TESTING ITERATORS - ARRAY, VECTOR AND LLIST\t]\n");
 
-    uchar* it_b_teste = iterator_begin(tarr);
-    uchar* it_e_teste = iterator_end(tarr);
+    uchar* it_b_teste = it_begin(tarr);
+    uchar* it_e_teste = it_end(tarr);
     assert(it_b_teste!=NULL); assert_counter++;
     assert(it_e_teste!=NULL); assert_counter++;
 
@@ -152,8 +153,8 @@ int main()
         assert_counter++;
     }
 
-    uchar* it_lb = iterator_llist_begin(tllist);
-    uchar* it_le = iterator_llist_end(tllist);
+    uchar* it_lb = it_llist_begin(tllist);
+    uchar* it_le = it_llist_end(tllist);
     assert(it_lb  == addrs[0]);assert_counter++;
     assert(it_le == addrs[2]);assert_counter++;
     it_counter = 0;
@@ -174,10 +175,23 @@ int main()
     it_counter=0;
 
     printf("[\t TESTING ITERATORS - PASSED - %ld OK \t]\n\n",assert_counter);
+    assert_counter=0;
+
+    printf("[\t TESTING ZIP ITERATORS - ARRAY, VECTOR AND LLIST\t]\n");
+
+    zip_begin(tarr, tvec);
+    zip_end(tarr, tvec);
+
+    printf("[\t TESTING ZIP ITERATORS - PASSED - %ld OK \t]\n\n",assert_counter);
+    assert_counter=0;
 
     printf("[\t TESTING FOR EACH - ARRAY, VECTOR AND LLIST\t]\n");
-    // array.for_each_map(tarr,);
+    
+    byte* temp = array.for_each_map(tarr,minus_two_func);
+    vector.destroy(temp);
+    
     printf("[\t TESTING FOR EACH - PASSED - %ld OK \t]\n\n",assert_counter);
+    assert_counter=0;
 
 
     array.destroy(tarr);
