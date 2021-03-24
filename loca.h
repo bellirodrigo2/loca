@@ -53,7 +53,6 @@ arr_size loca_size(byte *arr);
 //clear the array
 arr_size loca_clear(byte *arr);
 
-
 //push one item to the array
 arr_size loca_push_one(byte **arr2, byte src);
 arr_size loca_push_one_vec(byte **arr2, byte src);
@@ -72,6 +71,10 @@ arr_size loca_push_str_vec(byte **arr2, byte *src, arr_size size,bool zero_termi
 arr_size loca_push_str_llist(byte **arr2, byte *src, arr_size size,bool zero_terminated);
 arr_size loca_push_str_circ(byte **arr, byte *src, arr_size size,bool zero_terminated);
 
+//push ordered
+typedef int cmp(byte *, byte *);
+arr_size loca_push_sorted(byte *arr, byte* src, arr_size size,cmp* compare);
+
 //return a pointer to arr[index]
 //if the index is invalid, NULL is returned instead
 byte *loca_at(byte *arr, arr_size index);
@@ -79,7 +82,8 @@ byte *loca_at(byte *arr, arr_size index);
 //utils
 byte *loca_copy(byte *arr);
 byte *loca_llist_copy(byte *arr);
-
+byte *loca_trim(byte *arr);
+byte *loca_replace(byte *arr, arr_size index, byte* value, arr_size value_size);
 
 //iterator
 byte* it_begin(byte* arr);

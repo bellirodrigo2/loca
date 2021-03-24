@@ -193,7 +193,6 @@ int main()
     printf("[\t TESTING FOR EACH - PASSED - %ld OK \t]\n\n",assert_counter);
     assert_counter=0;
 
-
     array.destroy(tarr);
     vector.destroy(tvec);
 
