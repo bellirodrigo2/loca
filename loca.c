@@ -182,33 +182,38 @@ byte* it_end(byte* arr){if(!arr) return NULL; return &arr[cast_meta(arr)->len];}
 byte* it_next(byte** arr){if(!arr || !(*arr)) return NULL; return ++(*arr);}
 byte* it_prev(byte** arr){if(!arr || !(*arr)) return NULL;return --(*arr);}
 
-byte* zip_begin(byte* arr1, byte* arr2){
-    if(!arr1 || !arr2) return NULL; 
+zip_ptr2 zip_begin(byte* arr1, byte* arr2){
+    if(!arr1 || !arr2){
+        zip_ptr2 res = {NULL,NULL};
+        return res;
+    };
 
-    byte** res = tmalloc(2*sizeof(void*));
-    res[0]=&arr1[0];
-    res[1]=&arr2[0];
-
-    return *res;
+    zip_ptr2 res = {&arr1[0],&arr2[0]};
+    return res;
 }
-byte* zip_end(byte* arr1, byte* arr2){
-    if(!arr1 || !arr2) return NULL; 
+zip_ptr2 zip_end(byte* arr1, byte* arr2){
+    if(!arr1 || !arr2){
+        zip_ptr2 res = {NULL,NULL};
+        return res;
+    };
 
-    byte** res = tmalloc(2*sizeof(void*));
-    res[0]=&arr1[cast_meta(arr1)->len];
-    res[1]=&arr2[cast_meta(arr2)->len];
-
-    return *res;
-}
-byte* zip_prev(byte* arr1, byte* arr2){
-    return NULL;
-}
-byte* zip_next(byte* arr1, byte* arr2){
-    return NULL;
+    zip_ptr2 res = {&arr1[cast_meta(arr1)->len],&arr1[cast_meta(arr2)->len]};
+    return res;
 }
 
-byte* zip_destroy(byte* arr1, byte* arr2){
-    return NULL;
+void zip_next(zip_ptr2* zipit){
+    (*zipit).arr1 = it_next(&(*zipit).arr1);
+    (*zipit).arr2 = it_next(&(*zipit).arr2);
+}
+
+void zip_prev(zip_ptr2* zipit){
+    (*zipit).arr1 = it_prev(&(*zipit).arr1);
+    (*zipit).arr2 = it_prev(&(*zipit).arr2);
+}
+
+void zip_destroy(byte* zip1, byte* zip2){
+    if(zip1) tfree(zip1); 
+    if(zip1) tfree(zip1); 
 }
 
 /****************************************************************************

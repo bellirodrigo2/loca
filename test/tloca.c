@@ -21,14 +21,6 @@
         assert_counter++;                            \
     }
 
-#define assert_profile_llist(arr_name_, len_, max_) \
-    {                                               \
-        assert(llist.length(arr_name_) == len_);    \
-        assert_counter++;                           \
-        assert(llist.size(arr_name_) == max_);      \
-        assert_counter++;                           \
-    }
-
 typedef uint8_t uchar;
 
 int main()
@@ -39,7 +31,6 @@ int main()
     arr_size assert_counter = 0;
     uchar *tarr = NULL;
     uchar *tvec = NULL;
-    uchar *tllist = NULL;
 
     printf("\n[\t TESTING CREATE - ARRAY, VECTOR AND LLIST \t]\n");
 
@@ -107,14 +98,6 @@ int main()
     assert_counter++;
     assert_profile_array(tvec, (rounded_size + 1), rounded_size * 2);
 
-    uchar *addrs[8];
-    addrs[0] = tllist;
-    // printf("addr[0]: %p\n",(void*)addrs[0]);
-    assert(addrs[0] == tllist);
-    assert_counter++;
-
-    // printf("addr[1]: %p\n",(void*)addrs[1]);
-
     //just for clearing the full array 'tarr'
     array.clear(tarr);
     assert_profile_array(tarr, 0, rounded_size);
@@ -167,8 +150,18 @@ int main()
 
     printf("[\t TESTING ZIP ITERATORS - ARRAY, VECTOR AND LLIST\t]\n");
 
-    zip_begin(tarr, tvec);
-    zip_end(tarr, tvec);
+    zip_ptr2 z_it = zip_begin(tarr, tvec);
+    const zip_ptr2 z_end = zip_end(tarr, tvec);
+
+    assert(z_it.arr1 != NULL);
+    assert(z_it.arr2 != NULL);
+
+    for (size_t i = 0; i < loca_size(tarr); i++)
+    {
+    assert((*(z_it.arr1) == *loca_at(tarr,i))); assert_counter++;
+    assert((*(z_it.arr2) == *loca_at(tvec,i))); assert_counter++;
+    zip_next(&z_it); assert_counter++;
+    }
 
     printf("[\t TESTING ZIP ITERATORS - PASSED - %ld OK \t]\n\n", assert_counter);
     assert_counter = 0;

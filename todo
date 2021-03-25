@@ -1,9 +1,7 @@
 terminar utils e sorted push
-terminar llist e testar
-fazer circ e testar
 fazer tuple e testar
 
 zip iterator com variadic com tupla e quais elementos iterator
 
-fazer allocator e testar
+fazer sallocator e testar
 fazer sstream e testar

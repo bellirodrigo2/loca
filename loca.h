@@ -76,12 +76,15 @@ byte* it_next(byte** arr);
 byte* it_prev(byte** arr);
 
 typedef struct zip_pointer_st2 zip_ptr2;
+struct zip_pointer_st2{
+    byte* arr1;
+    byte* arr2;
+};
 
-byte* zip_begin(byte* arr1, byte* arr2);
-byte* zip_end(byte* arr1, byte* arr2);
-byte* zip_prev(byte* arr1, byte* arr2);
-byte* zip_next(byte* arr1, byte* arr2);
-byte* zip_destroy(byte* arr1, byte* arr2);
+zip_ptr2 zip_begin(byte* arr1, byte* arr2);
+zip_ptr2 zip_end(byte* arr1, byte* arr2);
+void zip_prev(zip_ptr2* zipit);
+void zip_next(zip_ptr2* zipit);
 
 //for each
 typedef byte* map_func(byte*,byte*);
