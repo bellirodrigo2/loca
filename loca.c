@@ -11,38 +11,13 @@ struct loca_meta_st{
     arr_size max;
 };
 
-struct llnode_st{
-    struct llnode_st* next;
-    struct llnode_st* prev;
-    struct loca_meta_st meta;
-};
-
-struct circheader_st{
-    arr_size virtual_end;
-    struct loca_meta_st meta;
-};
-
 static const arr_size _size_loca_meta = sizeof(loca_meta);
-static const arr_size _size_llnode = sizeof(llnode);
-static const arr_size _size_circheader = sizeof(circheader);
 
 void meta_print(byte* arr){
     loca_meta* lm = cast_meta(arr);
     printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld }\n",lm->len, lm->max);
     }
 
-void meta_print_llist(byte* arr){
-    if(!arr) printf("{ NULL }\n");
-    llnode* node = cast_llist(arr);
-    if(node->next ==NULL && node->prev ==NULL)
-        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = NULL, PREV = NULL }\n",node->meta.len, node->meta.max);
-    else if(node->next ==NULL) 
-        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = NULL, PREV = %p }\n",node->meta.len, node->meta.max, (void*)node->prev);
-    else if(node->prev == NULL)
-        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = %p, PREV = NULL }\n",node->meta.len, node->meta.max, (void*)node->next);
-    else
-        printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld, NEXT = %p, PREV = %p }\n",node->meta.len, node->meta.max, (void*)node->next, (void*)node->prev);
-    }
 
 /****************************************************************************
 ****                CREATE DESTROY GETTERS RESIZE                        ****
@@ -64,22 +39,6 @@ void loca_destroy(byte *arr){
     tfree(meta);
 }
 
-loca_meta *llist_create(byte ** arr2, arr_size size){
-    if(!arr2) return 0;
-    size = (size > 0) ? size : STD_SIZE;
-    llnode *node = tmalloc(_size_llnode + roundup32(size));          
-    if(!node) return NULL;                                            
-    node->next = NULL; node->prev = NULL; node->meta.len = 0; node->meta.max = size;
-    *arr2 = jump_llist(node); 
-    return cast_meta(*arr2);
-  }
-
-void llist_destroy(byte *arr){
-    if (!arr) return; 
-    llnode *meta = cast_llist(arr);
-    tfree(meta);
-}
-
 arr_size loca_length(byte *arr){
     if(arr) return cast_meta(arr)->len;
     return 0;
@@ -97,29 +56,6 @@ arr_size loca_clear(byte *arr){
         return meta->len;
     }
     return 1;
-}
-
-static byte* resize_circ(byte** arr2, arr_size extra_len){
-    if(arr2 || (*arr2)) return NULL;
-    circheader* header = cast_circ((*arr2));
-    header->virtual_end = header->meta.len;
-    header->meta.len=0;
-    return (*arr2);
-}
-
-static byte* resize_llist(byte** arr2, arr_size extra_len){
-    if(!arr2 || !(*arr2)) return 0;
-    //falta checar size_t overflow
-    //fazer roundup64 unsigned
-    llnode* node = cast_llist((*arr2));
-    loca_meta* meta = &node->meta;
-    arr_size new_size = (meta->max > extra_len) ? meta->max : roundup32(extra_len);
-    byte * new_node_ptr = NULL;
-    loca_meta* new_meta = llist_create(&new_node_ptr, new_size);
-    llnode* new_node =cast_llist(new_node_ptr);
-    node->next = new_node;
-    new_node->prev = node;
-    return new_node_ptr;   
 }
 
 static byte* resize_vec(byte** arr2, arr_size extra_len){
@@ -184,14 +120,6 @@ arr_size loca_push_one_vec(byte **arr2, byte src){
     return push_grow(arr2, &src, 1, resize_vec,1);
 }
 
-arr_size loca_push_one_llist(byte **arr2, byte src){
-    return push_grow(arr2, &src, 1, resize_llist,1);
-}
-
-arr_size loca_push_one_circ(byte **arr2, byte src){
-    return push_grow(arr2, &src, 1, resize_circ,1);    
-}
-
 /****************************************************************************
 ****                            PUSH STR                                 ****
 ****************************************************************************/
@@ -207,16 +135,6 @@ arr_size loca_push_str_vec(byte **arr2, byte *src, arr_size size, bool zero_term
     return push_grow(arr2,src, size, resize_vec,1);
 }
 
-arr_size loca_push_str_llist(byte **arr2, byte *src, arr_size size, bool zero_terminated){
-    //falta add o zero terminated
-    return push_grow(arr2,src, size, resize_llist,1);
-}
-
-arr_size loca_push_str_circ(byte **arr2, byte *src, arr_size size, bool zero_terminated){
-    //falta add o zero terminated
-    return push_grow(arr2,src, size, resize_circ,1);    
-}
-
 /****************************************************************************
 ****                            PUSH MANY                                ****
 ****************************************************************************/
@@ -229,15 +147,6 @@ arr_size loca_push_many(byte **arr2, byte *src, arr_size size){
 arr_size loca_push_many_vec(byte **arr2, byte *src, arr_size size){
     return push_grow(arr2,src, size, resize_vec,1); //push_some makes no sense to vectors
 }
-
-arr_size loca_push_many_llist(byte **arr2, byte *src, arr_size size){
-    return push_grow(arr2,src, size, resize_llist,0);
-}
-
-arr_size loca_push_many_circ(byte **arr2, byte *src, arr_size size){
-    return push_grow(arr2,src, size, resize_circ,0);    
-}
-
 
 /****************************************************************************
 ****                                 AT                                  ****
@@ -263,9 +172,6 @@ byte *loca_copy(byte *arr){
     return copy;
 }
 
-byte *loca_llist_copy(byte *arr){
-    return NULL;
-}
 
 /****************************************************************************
 ****                          ITERATOR                                   ****
@@ -275,42 +181,6 @@ byte* it_begin(byte* arr){if(!arr) return NULL; return &arr[0];}\
 byte* it_end(byte* arr){if(!arr) return NULL; return &arr[cast_meta(arr)->len];}
 byte* it_next(byte** arr){if(!arr || !(*arr)) return NULL; return ++(*arr);}
 byte* it_prev(byte** arr){if(!arr || !(*arr)) return NULL;return --(*arr);}
-
-byte* it_llist_begin(byte* arr){
-
-    if(arr==NULL) return NULL;
-    llnode* first = cast_llist(arr);
-    while(first->prev !=NULL){
-        first = first->prev;}
-
-    return jump_llist(first);
-}
-
-byte* it_llist_end(byte* arr){
-
-    if(arr==NULL) return NULL;
-    llnode* last = cast_llist(arr);
-    while(last->next !=NULL) last = last->next;
-
-    return jump_llist(last);
-}
-
-byte* it_llist_next(byte** arr){
-    if(!arr && !(*arr)) return NULL;
-    llnode* node = cast_llist(*arr);
-    if(!node->next) return NULL;
-    node = node->next;
-    return jump_llist(node);
-
-    }
-
-byte* it_llist_prev(byte** arr){
-    if(!arr && !(*arr)) return NULL;
-        llnode* node = cast_llist(*arr);
-        if(!node->next) return NULL;
-        node = node->prev;
-    return jump_llist(node);
-}
 
 byte* zip_begin(byte* arr1, byte* arr2){
     if(!arr1 || !arr2) return NULL; 
@@ -375,15 +245,6 @@ byte* for_each_filter(byte* arr, filter_func* filter){
 
 }
 
-byte* for_each_llist_map(byte* arr, map_func* map){
-    return NULL;
-}
-
-byte* for_each_llist_filter(byte* arr, filter_func* filter){
-    return NULL;
-
-}
-
 /****************************************************************************
 ****                          VTABLES                                   ****
 ****************************************************************************/
@@ -420,21 +281,4 @@ const struct vTable_st vector = {loca_create,
                             it_prev,
                             for_each_map,
                             for_each_filter
-                            };
-
-const struct vTable_st llist = {llist_create, 
-                            loca_destroy,
-                            loca_length,
-                            loca_size,
-                            loca_clear,
-                            loca_push_one_llist,
-                            loca_push_many_llist,
-                            loca_push_str_vec,
-                            loca_at,
-                            it_llist_begin,
-                            it_llist_end,
-                            it_llist_next,
-                            it_llist_prev,
-                            for_each_llist_map,
-                            for_each_llist_filter
                             };

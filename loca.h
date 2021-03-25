@@ -14,8 +14,6 @@ extern "C" {
 typedef size_t arr_size;
 typedef uint8_t byte;
 typedef struct loca_meta_st loca_meta;
-typedef struct llnode_st llnode;
-typedef struct circheader_st circheader;
 
 #define tmalloc malloc
 #define tcalloc calloc
@@ -23,14 +21,9 @@ typedef struct circheader_st circheader;
 #define tfree free
 
 #define cast_meta(arr_) ((loca_meta *)((char *)arr_ - _size_loca_meta))
-#define cast_llist(arr_) ((llnode *)((char *)arr_ - _size_llnode))
-#define cast_circ(arr_) ((circheader *)((char *)arr_ - _size_circheader))
 #define jump_meta(arr_) ((byte *)((char *)arr_ + _size_loca_meta))
-#define jump_llist(arr_) ((byte *)((char *)arr_ + _size_llnode))
-#define jump_circ(arr_) ((byte *)((char *)arr_ + _size_circheader))
 
 void meta_print(byte* lm);
-void meta_print_llist(byte* lm);
 
 /****************************************************************************
 ****                        FUNCTION PROTOTYPES                          ****
@@ -38,11 +31,9 @@ void meta_print_llist(byte* lm);
 
 //create an array and return a pointer to this array
 loca_meta *loca_create(byte **arr2, arr_size size);
-loca_meta *llist_create(byte **arr2, arr_size size);
 
 //just free the allocated object
 void loca_destroy(byte *arr);
-void llist_destroy(byte *arr);
 
 //return lenth
 arr_size loca_length(byte *arr);
@@ -56,20 +47,14 @@ arr_size loca_clear(byte *arr);
 //push one item to the array
 arr_size loca_push_one(byte **arr2, byte src);
 arr_size loca_push_one_vec(byte **arr2, byte src);
-arr_size loca_push_one_llist(byte **arr, byte src);
-arr_size loca_push_one_circ(byte **arr, byte src);
 
 //push multiple items to the array
 arr_size loca_push_many(byte **arr2, byte *src, arr_size size);
 arr_size loca_push_many_vec(byte **arr2, byte *src, arr_size size);
-arr_size loca_push_many_llist(byte **arr2, byte *src, arr_size size);
-arr_size loca_push_many_circ(byte **arr, byte *src, arr_size size);
 
 //push multiple items to the array as a string. Add all or add no
 arr_size loca_push_str(byte **arr2, byte *src, arr_size size, bool zero_terminated);
 arr_size loca_push_str_vec(byte **arr2, byte *src, arr_size size,bool zero_terminated);
-arr_size loca_push_str_llist(byte **arr2, byte *src, arr_size size,bool zero_terminated);
-arr_size loca_push_str_circ(byte **arr, byte *src, arr_size size,bool zero_terminated);
 
 //push ordered
 typedef int cmp(byte *, byte *);
@@ -81,7 +66,6 @@ byte *loca_at(byte *arr, arr_size index);
 
 //utils
 byte *loca_copy(byte *arr);
-byte *loca_llist_copy(byte *arr);
 byte *loca_trim(byte *arr);
 byte *loca_replace(byte *arr, arr_size index, byte* value, arr_size value_size);
 
@@ -90,13 +74,6 @@ byte* it_begin(byte* arr);
 byte* it_end(byte* arr);
 byte* it_next(byte** arr);
 byte* it_prev(byte** arr);
-
-byte* it_llist_begin(byte* arr);
-byte* it_llist_end(byte* arr);
-byte* it_llist_next(byte** arr);
-byte* it_llist_prev(byte** arr);
-
-byte* it_circ_end(byte* arr);
 
 typedef struct zip_pointer_st2 zip_ptr2;
 
@@ -112,9 +89,6 @@ typedef byte* reduce_func(byte*,byte*,byte*);
 typedef map_func filter_func;
 byte* for_each_map(byte* arr, map_func* map_func);
 byte* for_each_filter(byte* arr, filter_func* filter_func);
-
-byte* for_each_llist_map(byte* arr, map_func* map_func);
-byte* for_each_llist_filter(byte* arr, filter_func* filter_func);
 
 /****************************************************************************
 ****                               VTABLE                                ****
@@ -153,7 +127,6 @@ struct vTable_st{
 
 extern const vTable array;
 extern const vTable vector;
-extern const vTable llist;
 
 #ifdef __cplusplus
 }
