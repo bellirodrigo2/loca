@@ -6,54 +6,59 @@
 
 #define STD_SIZE 64
 
-struct loca_meta_st{
-    arr_size len;
-    arr_size max;
-};
-
-static const arr_size _size_loca_meta = sizeof(loca_meta);
-
 void meta_print(byte* arr){
-    loca_meta* lm = cast_meta(arr);
-    printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld }\n",lm->len, lm->max);
+    uint64_t* len = cast_meta_len(arr);
+    uint64_t* max = cast_meta_max(arr);
+    printf("{ meta_loca->LEN = %ld, meta_loca->SIZE = %ld }\n",*len, *max);
     }
 
 
 /****************************************************************************
 ****                CREATE DESTROY GETTERS RESIZE                        ****
 ****************************************************************************/
-
-loca_meta *loca_create(byte ** arr2, arr_size size){
-    if(!arr2) return 0;
+static arr_size* loca_new(byte ** arr2, arr_size size, bool is_alloc){
+    if(!arr2) return 0;\
     size = (size > 0) ? size : STD_SIZE;
-    loca_meta *meta = tmalloc(_size_loca_meta + roundup32(size));          
-    if(!meta) return NULL;                                            
-    meta->len = 0; meta->max = size;
-    *arr2 = jump_meta(meta); 
+    arr_size *meta=NULL;
+    if(!is_alloc) {
+        meta = tmalloc(2*sizeof(arr_size) + roundup32(size));
+        if(!meta) return NULL;
+    } else meta = cast_meta_len(*arr2);
+    meta[0] = 0; meta[1] = size;
+    *arr2 = jump_meta_len(meta); 
     return meta;
+
+}
+
+arr_size *loca_create(byte ** arr2, arr_size size){
+    return loca_new(arr2, size,0);    
+  }
+
+arr_size *loca_init(byte ** arr2, arr_size size){
+    return loca_new(arr2, size,1);    
   }
 
 void loca_destroy(byte *arr){
     if (!arr) return; 
-    loca_meta *meta = cast_meta(arr);
-    tfree(meta);
+    uint64_t* len = cast_meta_len(arr);
+    tfree(len);
 }
 
 arr_size loca_length(byte *arr){
-    if(arr) return cast_meta(arr)->len;
+    if(arr) return *cast_meta_len(arr);
     return 0;
 }
 
 arr_size loca_size(byte *arr){
-    if(arr) return cast_meta(arr)->max;
+    if(arr) return *cast_meta_max(arr);
     return 0;
 }
 
 arr_size loca_clear(byte *arr){
     if(arr){
-        loca_meta* meta = cast_meta(arr);
-        meta->len=0;
-        return meta->len;
+        arr_size* meta = cast_meta_len(arr);
+        *meta=0;
+        return *meta;
     }
     return 1;
 }
@@ -62,50 +67,51 @@ static byte* resize_vec(byte** arr2, arr_size extra_len){
     if(!arr2 || !(*arr2)) return 0;
     //falta checar size_t overflow
     //fazer roundup64 unsigned
-    loca_meta* meta = cast_meta((*arr2));
-    arr_size new_size = meta->max + extra_len;
+    arr_size* meta_max = cast_meta_max((*arr2));
+    arr_size* meta_len = cast_meta_len((*arr2));
+    arr_size new_size = *meta_max + extra_len;
     roundup32(new_size);
-    meta->max = new_size;
-    meta = (loca_meta*)realloc(meta, meta->max);
-    if(!meta) return NULL;
-    return jump_meta(meta);
+    *meta_max = new_size;
+    meta_len = (arr_size*)realloc(meta_len, *meta_max);
+    if(!meta_len) return NULL;
+    return jump_meta_len(meta_len);
 }
 
 static arr_size push_orNot(byte *arr, byte *src, arr_size size){
     if(!arr) return 0;
-    loca_meta* meta = cast_meta(arr);
-    assert(meta->max >= meta->len);
-    if((meta->max - size) < meta->len) return 0;
-    memmove(&arr[meta->len],src, size);
-    meta->len += size;
+    arr_size* meta_max = cast_meta_max(arr);
+    arr_size* meta_len = cast_meta_len(arr);
+    assert(*meta_max >= *meta_len);
+    if((*meta_max - size) < *meta_len) return 0;
+    memmove(&arr[*meta_len],src, size);
+    *meta_len += size;
     return size;    
 }
 
 static arr_size push_some(byte *arr, byte *src, arr_size size){
 
     if(!arr) return 0;
-    loca_meta* meta = cast_meta(arr);
-    assert(meta->max >= meta->len);
-    arr_size available = ((meta->max - size) > meta->len) ? size : (meta->max - meta->len);
+    arr_size* meta_max = cast_meta_max(arr);
+    arr_size* meta_len = cast_meta_len(arr);
+    assert(*meta_max >= *meta_len);
+    arr_size available = ((* meta_max - size) > *meta_len) ? size : (*meta_max - *meta_len);
     if(!available) return 0;
-    memmove(&arr[meta->len],src, available);
-    meta->len += available;
+    memmove(&arr[*meta_len],src, available);
+    *meta_len += available;
     return available;    
 }
-
 
 typedef byte* loca_resize(byte** , arr_size ); 
 
 static arr_size push_grow(byte **arr2, byte *src, arr_size size, loca_resize* rsz, bool is_string){
-        if(!arr2 || !(*arr2)) return 0;
-        arr_size res = 0;
-
-        if(is_string){ res = push_orNot((*arr2),src,size);}
-        else{ res = push_some((*arr2),src,size);}
-        if( res == size) return res;
-        *arr2 = rsz(arr2,(size-res));
-        return res + push_orNot((*arr2),src,(size-res));
-    }
+    if(!arr2 || !(*arr2)) return 0;
+    arr_size res = 0;
+    if(is_string){ res = push_orNot((*arr2),src,size);}
+    else{ res = push_some((*arr2),src,size);}
+    if( res == size) return res;
+    *arr2 = rsz(arr2,(size-res));
+    return res + push_orNot((*arr2),src,(size-res));
+}
 
 /****************************************************************************
 ****                              PUSH ONE                               ****
@@ -155,8 +161,7 @@ arr_size loca_push_many_vec(byte **arr2, byte *src, arr_size size){
 //falta implementar indice negativo
 //e o que fazer se index > len
 byte *loca_at(byte *arr, arr_size index){
-    arr_size temp = cast_meta(arr)->len;
-    return ((index < temp) ? &arr[index] : NULL);
+    return ((index < *cast_meta_len(arr)) ? &arr[index] : NULL);
 }
 
 /****************************************************************************
@@ -165,11 +170,47 @@ byte *loca_at(byte *arr, arr_size index){
 
 byte *loca_copy(byte *arr){
     if(!arr) return NULL;
-    loca_meta* meta = cast_meta(arr);
-    byte* copy = NULL;
-    loca_meta* copy_meta = loca_create(&copy,meta->max);
-    push_orNot(copy,arr,meta->len);
+    arr_size* meta_len = cast_meta_len(arr);
+    arr_size* meta_max = cast_meta_max(arr);
+    byte* copy = tmalloc(2*sizeof(arr_size) + *meta_max);
+    memmove(copy,meta_len,*meta_len);
     return copy;
+}
+
+byte *loca_trim(byte *arr){
+    
+    uint64_t* len = cast_meta_len(arr);
+    uint64_t* max = cast_meta_max(arr);
+    if(len>=max) return arr;
+    *max = *len;
+    len = (arr_size*)realloc(len, *len);
+    if(!len) return NULL;
+    return jump_meta_len(len);
+}
+
+byte *loca_find_str(byte *arr, const char *arr_tgt){
+    for (byte* it_b = array.it_begin(arr); it_b != array.it_end(arr); array.it_next(&it_b)){
+        const char* cstr = (char*)it_b+1;
+        if(strcmp(cstr,arr_tgt)==0) return it_b;
+        //mudar para
+        //sstri sstri_compare_sstr(const sstri *str, const sstri* cstr);
+    }
+    return NULL;
+}
+
+byte *loca_replace_str(byte *arr, arr_size index, byte* value, arr_size size){
+
+    byte* it_b = it_begin(arr);
+
+    for (size_t i = 0; i < index; i++){if((it_b = it_next_str(&it_b))==NULL) return NULL;}
+    // byte str_size = *(it_b);
+    arr_size* len = cast_meta_len(it_b);
+    arr_size* max = cast_meta_max(it_b);
+    if(max-size < len) return NULL;
+    memmove((it_b+size),it_b,size);
+    memmove(it_b,value,size);
+
+    return it_b;
 }
 
 
@@ -178,9 +219,23 @@ byte *loca_copy(byte *arr){
 ****************************************************************************/
 
 byte* it_begin(byte* arr){if(!arr) return NULL; return &arr[0];}\
-byte* it_end(byte* arr){if(!arr) return NULL; return &arr[cast_meta(arr)->len];}
+byte* it_end(byte* arr){if(!arr) return NULL; return &arr[*cast_meta_len(arr)];}
 byte* it_next(byte** arr){if(!arr || !(*arr)) return NULL; return ++(*arr);}
 byte* it_prev(byte** arr){if(!arr || !(*arr)) return NULL;return --(*arr);}
+
+byte* it_next_str(byte** arr){
+    if(!arr || !(*arr)) return NULL; 
+    byte str_size = *(*arr);
+    *arr += str_size+1;
+    return (*arr);
+    }
+
+byte* it_prev_str(byte** arr){
+    if(!arr || !(*arr)) return NULL; 
+    byte str_size = *(arr[0]);
+    *arr += str_size+1;
+    return (*arr);
+    }
 
 zip_ptr2 zip_begin(byte* arr1, byte* arr2){
     if(!arr1 || !arr2){
@@ -197,7 +252,7 @@ zip_ptr2 zip_end(byte* arr1, byte* arr2){
         return res;
     };
 
-    zip_ptr2 res = {&arr1[cast_meta(arr1)->len],&arr1[cast_meta(arr2)->len]};
+    zip_ptr2 res = {&arr1[*cast_meta_len(arr1)],&arr1[*cast_meta_len(arr2)]};
     return res;
 }
 
@@ -247,8 +302,8 @@ byte* for_each_map(byte* arr, map_func* map){
 byte* for_each_filter(byte* arr, filter_func* filter){
     byte* mapped = NULL;
     return for_each_base(arr,filter,mapped,loca_length(arr));
-
 }
+
 
 /****************************************************************************
 ****                          VTABLES                                   ****

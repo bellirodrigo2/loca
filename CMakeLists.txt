@@ -12,7 +12,7 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(tloca test/tloca.c loca.c lib_maps.c)
 # add_executable(gtloca test/gtloca.cpp loca.c)
-add_executable(tsstr test/tsstr.c sstring.c)
+add_executable(tsstr test/tsstr.c sstring.c sstream.c loca.c)
 
 # run undefined behavior sanitizer
 target_link_libraries(tloca -fsanitize=undefined -fno-omit-frame-pointer)

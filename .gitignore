@@ -9,13 +9,7 @@ test/tsstr.c
 allocator.h
 allocator.c
 
-
 atomic.h
-
-macros.h
-
-sstring.h
-sstring.c
 
 time_task.h
 

@@ -40,7 +40,15 @@ int main()
     assert(vector.create(NULL, 0) == NULL && tvec == NULL);
     assert_counter++;
 
+    //testing create
     array.create(&tarr, std_size);
+    assert(tarr != NULL);
+    assert_counter++;
+    array.destroy(tarr);
+    //testing init
+    arr_size* meta = tmalloc(2*sizeof(arr_size) + roundup32(std_size));
+    tarr= jump_meta_len(meta);
+    loca_init(&tarr, std_size);
     assert(tarr != NULL);
     assert_counter++;
 
@@ -173,6 +181,8 @@ int main()
 
     printf("[\t TESTING FOR EACH - PASSED - %ld OK \t]\n\n", assert_counter);
     assert_counter = 0;
+
+    meta_print(tarr);
 
     array.destroy(tarr);
     vector.destroy(tvec);
